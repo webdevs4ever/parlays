@@ -37,61 +37,60 @@ function shuffle(arr) {
 }
 
 const QUESTION_TYPES = [
-  { key: "implied_prob", label: "Implied Prob" },
-  { key: "parlay_math",  label: "Parlay Math"  },
-  { key: "ev",           label: "EV"            },
-  { key: "hit_rate",     label: "Hit Rate"      },
+  { key: "python", label: "Python" },
 ];
 
-function generateQuestions(parlays) {
-  const questions = [];
+const DIFFICULTY_STYLES = {
+  easy:   { label: "EASY",   bg: "#14532d", color: "#22C55E" },
+  medium: { label: "MEDIUM", bg: "#664d03", color: "#facc15" },
+  hard:   { label: "HARD",   bg: "#581c0c", color: "#ef4444" },
+};
 
-  // Implied probability
-  [
-    { odds: -110, correct: "52.4%", wrong: ["47.6%", "55.0%", "45.5%"] },
-    { odds: -150, correct: "60.0%", wrong: ["40.0%", "55.0%", "65.0%"] },
-    { odds: +120, correct: "45.5%", wrong: ["54.5%", "52.4%", "40.0%"] },
-    { odds: -200, correct: "66.7%", wrong: ["33.3%", "60.0%", "75.0%"] },
-    { odds: +150, correct: "40.0%", wrong: ["60.0%", "45.5%", "35.0%"] },
-  ].forEach(({ odds, correct, wrong }) =>
-    questions.push({ type: "implied_prob", question: `A leg priced at ${odds > 0 ? "+" : ""}${odds} carries what implied probability?`, correct, wrong })
-  );
-
-  // Parlay math
-  [
-    { n: 2, p: 60, correct: "36.0%",  wrong: ["60.0%", "40.0%", "48.0%"] },
-    { n: 3, p: 60, correct: "21.6%",  wrong: ["60.0%", "36.0%", "18.0%"] },
-    { n: 3, p: 50, correct: "12.5%",  wrong: ["50.0%", "16.7%", "25.0%"] },
-    { n: 4, p: 60, correct: "13.0%",  wrong: ["60.0%", "24.0%", "21.6%"] },
-    { n: 2, p: 52, correct: "27.0%",  wrong: ["52.0%", "50.0%", "33.0%"] },
-  ].forEach(({ n, p, correct, wrong }) =>
-    questions.push({ type: "parlay_math", question: `If each of ${n} legs independently has a ${p}% hit rate, what's the probability ALL ${n} hit?`, correct, wrong })
-  );
-
-  // EV
-  [
-    { question: "Your 1+ hits leg has a 48% actual hit rate but is priced at -110 (52.4% implied). Is this positive or negative EV?", correct: "Negative EV — you hit less than implied", wrong: ["Positive EV — close enough", "Neutral EV", "Positive EV — 48% is still solid"] },
-    { question: "You win $84.74 on a $1.00 bet with a ~1.2% chance of hitting. What is the approximate EV?", correct: "~+$0.02 (slightly positive)", wrong: ["+$84.74", "-$1.00", "-$0.50"] },
-    { question: "Which is better long-term: win $5 at 25% probability, or win $3 at 40% probability (both $1 bets)?", correct: "$3 @ 40% — EV = +$0.20 vs +$0.25", wrong: ["$5 @ 25% — higher payout wins", "They're equal", "$3 @ 40% — lower variance always wins"] },
-    { question: "A sportsbook prices a leg at -110. You estimate the true hit rate is 55%. Is there an edge?", correct: "Yes — 55% > 52.4% implied", wrong: ["No — the book is always right", "Only if you win 3 in a row", "No — the vig erases any edge"] },
-  ].forEach(q =>
-    questions.push({ type: "ev", ...q })
-  );
-
-  // Hit rate from real data
-  const settled = parlays.flatMap(p => p.legs).filter(l => l.status !== "pending");
-  if (settled.length >= 3) {
-    const hits = settled.filter(l => l.status === "hit").length;
-    const rate = Math.round((hits / settled.length) * 100);
-    const wrong = [rate - 10, rate + 10, rate + 20]
-      .map(r => `${Math.max(0, Math.min(100, r))}%`);
-    questions.push({
-      type: "hit_rate",
-      question: `Based on your tracked legs so far (${settled.length} settled), what is your overall hit rate?`,
-      correct: `${rate}%`,
-      wrong,
-    });
-  }
+function generateQuestions() {
+  const questions = [
+    {
+      type: "python",
+      difficulty: "easy",
+      question: "In Python, the keyword used to define a function is ____.",
+      correct: "def",
+      wrong: ["func", "define", "lambda"],
+    },
+    {
+      type: "python",
+      difficulty: "easy",
+      question: "A Python list literal is written with square brackets like [1, 2, 3], so its type is ____.",
+      correct: "list",
+      wrong: ["tuple", "dict", "set"],
+    },
+    {
+      type: "python",
+      difficulty: "medium",
+      question: "The operator used for exponentiation in Python is ____.",
+      correct: "**",
+      wrong: ["^", "pow", "%"],
+    },
+    {
+      type: "python",
+      difficulty: "medium",
+      question: "To test inequality in Python, you use the operator ____.",
+      correct: "!=",
+      wrong: ["==", "not", "<>"],
+    },
+    {
+      type: "python",
+      difficulty: "hard",
+      question: "A mutable built-in Python container for key/value pairs is called a ____.",
+      correct: "dict",
+      wrong: ["tuple", "set", "list"],
+    },
+    {
+      type: "python",
+      difficulty: "hard",
+      question: "When iterating over range(5), the final value produced by the loop variable is ____.",
+      correct: "4",
+      wrong: ["5", "1", "0"],
+    },
+  ];
 
   return shuffle(questions);
 }
@@ -107,12 +106,18 @@ function TestQuizCard({ question, index, selectedAnswer, onSelect }) {
   const options = useMemo(() => shuffle([question.correct, ...question.wrong]), [question]);
   const isAnswered = selectedAnswer !== undefined;
   const isCorrect  = selectedAnswer === question.correct;
+  const difficulty = DIFFICULTY_STYLES[question.difficulty] || DIFFICULTY_STYLES.easy;
 
   return (
     <div style={{ background:"#111", borderRadius:12, padding:16, display:"flex", flexDirection:"column", gap:12, fontFamily:mono }}>
-      <span style={{ fontSize:10, color:"#22C55E", textTransform:"uppercase", letterSpacing:"0.1em" }}>
-        {QUESTION_TYPES.find(t => t.key === question.type)?.label}
-      </span>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+        <span style={{ fontSize:10, color:"#22C55E", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+          {QUESTION_TYPES.find(t => t.key === question.type)?.label}
+        </span>
+        <span style={{ background:difficulty.bg, color:difficulty.color, borderRadius:999, padding:"4px 10px", fontSize:10, fontWeight:700, letterSpacing:"0.05em" }}>
+          {difficulty.label}
+        </span>
+      </div>
       <div style={{ color:"#fff", fontSize:13, lineHeight:1.6 }}>{question.question}</div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
         {options.map((opt, i) => {
