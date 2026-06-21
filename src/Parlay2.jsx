@@ -232,27 +232,33 @@ function ScanModal({ onClose, onScanned }) {
 
   const scan = async (base64, mediaType) => {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY ?? "";
+      if (!apiKey) throw new Error("Missing OpenAI API key. Set VITE_OPENAI_API_KEY in your env.");
+
+      const res = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
-            "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY ?? "",
-            "anthropic-version": "2023-06-01",
-          },
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-              { type: "text",  text:
-`Extract all parlay legs from this betting slip image.
-Respond with ONLY a JSON object, no other text:
-{"name":"parlay name","date":"Jun 13, 2026","stake":0,"payout":0,"legs":[{"desc":"Player: prop","game":"AWAY @ HOME"}]}`
-              },
-            ],
-          }],
+          model: "gpt-4.1-mini",
+          max_output_tokens: 1000,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `Extract all parlay legs from this betting slip image. Respond with ONLY a JSON object, no other text:\n{"name":"parlay name","date":"Jun 13, 2026","stake":0,"payout":0,"legs":[{"desc":"Player: prop","game":"AWAY @ HOME"}]}`,
+                },
+                {
+                  type: "input_image",
+                  image_url: `data:${mediaType};base64,${base64}`,
+                },
+              ],
+            },
+          ],
         }),
       });
 
@@ -264,12 +270,12 @@ Respond with ONLY a JSON object, no other text:
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
 
-      const raw = data.content?.find(b => b.type === "text")?.text ?? "";
-      // grab the first {...} block
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error(`Unexpected response: ${raw.slice(0, 100)}`);
+      const raw = data.output_text
+        || (data.output?.flatMap((item) => item.content?.filter((block) => block.type === "output_text").map((block) => block.text ?? "") ?? []).join("") ?? "");
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error(`Unexpected response: ${raw.slice(0, 100)}`);
 
-      const parsed = JSON.parse(m[0]);
+      const parsed = JSON.parse(match[0]);
       if (!Array.isArray(parsed.legs) || parsed.legs.length === 0)
         throw new Error("No legs found in response");
 
